@@ -315,3 +315,99 @@ impl Block {
 }
 
 
+/// # 实现Display trait - 自定义显示格式
+/// 
+/// 为Block实现Display trait，让区块可以用println!等宏友好地显示。
+/// 使用树状结构显示区块信息，便于阅读。
+impl fmt::Display for Block {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "区块 #{}\n\
+             ├─ 时间戳: {}\n\
+             ├─ 数据: {}\n\
+             ├─ 前一哈希: {}\n\
+             ├─ 哈希值: {}\n\
+             ├─ Nonce: {}\n\
+             ├─ 难度: {}\n\
+             └─ 大小: {} 字节",
+            self.index,
+            // 格式化时间戳为可读格式
+            self.timestamp.format("%Y-%m-%d %H:%M:%S UTC"),
+            self.data,
+            // 如果哈希值太长，只显示开头和结尾，中间用省略号
+            if self.previous_hash.len() > 16 {
+                format!("{}...{}", &self.previous_hash[..8], &self.previous_hash[self.previous_hash.len()-8..])
+            } else {
+                self.previous_hash.clone()
+            },
+            // 哈希值也只显示开头和结尾
+            format!("{}...{}", &self.hash[..8], &self.hash[self.hash.len()-8..]),
+            self.nonce,
+            self.difficulty,
+            self.get_size()
+        )
+    }
+}
+
+
+
+// ==================== 单元测试 ====================
+// 单元测试用于验证代码的正确性，确保各个功能模块按预期工作
+
+#[cfg(test)]  // 只在测试时编译这些代码
+mod tests {
+    use super::*;  // 导入上级模块的所有公共项
+
+    /// # 测试创世区块的创建
+    /// 
+    /// 验证创世区块是否正确创建：
+    /// - 索引为0
+    /// - 前一哈希为"0"
+    /// - 哈希值计算正确
+    #[test]
+    fn test_genesis_block_creation() {
+        let genesis = Block::genesis_block();
+        assert_eq!(genesis.index, 0);
+        assert_eq!(genesis.previous_hash, "0");
+        assert!(genesis.is_valid());
+    }
+
+    /// # 测试区块哈希计算的一致性
+    /// 
+    /// 验证同一个区块多次计算哈希值结果一致。
+    /// 这确保了哈希函数是确定性的。
+    #[test]
+    fn test_block_hash_calculation() {
+        let block = Block::new(1, "test data".to_string(), "prev_hash".to_string(), 1);
+        let hash1 = block.calculate_hash();
+        let hash2 = block.calculate_hash();
+        assert_eq!(hash1, hash2);
+    }
+
+    /// # 测试区块挖矿功能
+    /// 
+    /// 验证挖矿后的区块满足以下条件：
+    /// - 满足工作量证明要求
+    /// - 哈希值计算正确
+    #[test]
+    fn test_block_mining() {
+        let mut block = Block::new(1, "test mining".to_string(), "prev_hash".to_string(), 2);
+        block.mine_block();
+        assert!(block.has_valid_proof_of_work());
+        assert!(block.is_valid());
+    }
+
+    /// # 测试nonce改变对哈希值的影响
+    /// 
+    /// 验证改变nonce值会产生不同的哈希值。
+    /// 这确保了哈希函数的雪崩效应。
+    #[test]
+    fn test_nonce_increment_changes_hash() {
+        let mut block = Block::new(1, "test".to_string(), "prev".to_string(), 1);
+        let original_hash = block.calculate_hash();
+        block.nonce += 1;  // 改变nonce值
+        let new_hash = block.calculate_hash();
+        assert_ne!(original_hash, new_hash);  // 哈希值应该不同
+    }
+}
