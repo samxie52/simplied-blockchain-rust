@@ -1,5 +1,6 @@
 mod block;
 mod blockchain; 
+mod utils;
 
 use blockchain::Blockchain;
 use colored::*;
